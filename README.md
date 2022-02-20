@@ -1,5 +1,5 @@
 # EvtGenSimulations
-Repository with code to perform simulations with PYTHIA8 and EvtGen
+Repository with code to perform simulations with [PYTHIA8](https://pythia.org/) and [EvtGen](https://evtgen.hepforge.org/)
 
 ## [EvtGen](https://evtgen.hepforge.org/) installation
 To install [EvtGen](https://evtgen.hepforge.org/) you can either follow the instructions in the website https://evtgen.hepforge.org/, or use [aliBuild](https://alisw.github.io/alibuild/):
