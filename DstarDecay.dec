@@ -1,0 +1,21 @@
+# Define the aliased particles and their charge conjugates.
+Alias my_D*- D*-
+Alias my_D*+ D*+
+Alias my_D0 D0
+Alias my_anti-D0 anti-D0
+ChargeConj my_D*- my_D*+
+ChargeConj my_anti-D0 my_D0
+
+# Modify the decay of the D*+
+Decay my_D*+
+      1.0 my_D0 pi+ VSS;
+Enddecay
+CDecay my_D*-
+
+# Modify the decay of the D0
+Decay my_D0
+      1.0 K- pi+ PHSP;
+Enddecay
+CDecay my_anti-D0
+
+End
