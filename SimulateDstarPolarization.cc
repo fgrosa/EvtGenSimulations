@@ -35,7 +35,7 @@ namespace
 {
     enum decayer
     {
-        kPyhtia8 = 0,
+        kPythia8 = 0,
         kEvtGen
     };
 
@@ -142,7 +142,7 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
     }
 
     EvtGenDecays *evtgen = nullptr;
-    if(decayer == kPyhtia8) 
+    if(decayer == kPythia8) 
     {
         // keep only interesting decays
         pythia.readString("421:onMode = off");
@@ -228,7 +228,7 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
             }
 
             float sumPt = 0., sumY = 0.;
-            if(std::accumulate(ptDau.begin(), ptDau.end(), sumPt) < 1.e-10 || std::accumulate(yDau.begin(), yDau.end(), sumY) < 1.e-10)
+            if(std::accumulate(ptDau.begin(), ptDau.end(), sumPt) < 1.e-10 || std::abs(std::accumulate(yDau.begin(), yDau.end(), sumY)) < 1.e-10)
                 continue;
 
             ROOT::Math::PxPyPzMVector fourVecDstar = fourVecPi + fourVecD0;
