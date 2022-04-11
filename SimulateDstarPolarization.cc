@@ -54,10 +54,22 @@ namespace
     };
 }
 
+enum exclusiveDecays
+{
+    kB0toDstarElNue = 0,
+    kB0toDstarMuNumu,
+    kB0toDstarTauNutau,
+    kB0toDstarPiPlusPi0,
+    kB0toDstarDstarS,
+    kBPlustoDstarPiPlusPiPlusPi0    
+};
+
 //__________________________________________________________________________________________________
 void SimulateDstarPolarization(int nEvents=10000, int decayer=kEvtGen, int tune=kMonash, int process=kHardQCD, float energy=13000, int seed=42, std::string outFileNameRoot="AnalysisResults_Dstar_polarization_pythia_HardQCD_Monash_EvtGen.root");
 template<typename T, typename T2>
-bool IsFromBeauty(T& mothers, T2& pythia, int& motherIdx);
+bool IsFromBeauty(T& mothers, T2& pythia, int& motherIdx, float& ptB);
+template<typename T>
+int CheckBtoDstarExclusive(T& pythia, int motherIdx);
 
 //__________________________________________________________________________________________________
 void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, float energy, int seed, std::string outFileNameRoot)
@@ -171,10 +183,10 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
 
     //__________________________________________________________
     // define outputs
-    TNtuple* tupleDstars = new TNtuple("tupleDstars", "tupleDstars", "pTDstar:yDstar:cosThetaStar:cosThetaStarB:pTD0:yD0:pTPi:yPi:fromB");
+    TNtuple* tupleDstars = new TNtuple("tupleDstars", "tupleDstars", "pTDstar:yDstar:cosThetaStar:cosThetaStarB:pTD0:yD0:pTPi:yPi:fromB:ptB:Bdecay");
     auto hPxCorr = new TH2F("hPxCorr", ";#it{p}_{x}(D*^{+}) lab frame;#it{p}_{x}(B) D*^{+} rest frame", 200, -10., 10., 200, -10., 10.); 
-    auto hPyCorr = new TH2F("hPyCorr", ";#it{p}_{x}(D*^{y}) lab frame;#it{p}_{y}(B) D*^{+} rest frame", 200, -10., 10., 200, -10., 10.); 
-    auto hPzCorr = new TH2F("hPzCorr", ";#it{p}_{x}(D*^{z}) lab frame;#it{p}_{z}(B) D*^{+} rest frame", 200, -10., 10., 200, -10., 10.); 
+    auto hPyCorr = new TH2F("hPyCorr", ";#it{p}_{y}(D*^{+}) lab frame;#it{p}_{y}(B) D*^{+} rest frame", 200, -10., 10., 200, -10., 10.); 
+    auto hPzCorr = new TH2F("hPzCorr", ";#it{p}_{z}(D*^{+}) lab frame;#it{p}_{z}(B) D*^{+} rest frame", 200, -10., 10., 200, -10., 10.); 
     auto hPhiCorr = new TH2F("hPhiCorr", ";#varphi(D*^{+}) lab frame;#varphi(B) D*^{+} rest frame", 100, 0., TMath::Pi(), 100, 0., TMath::Pi()); 
     auto hEtaCorr = new TH2F("hEtaCorr", ";#eta(D*^{+}) lab frame;#eta(B) D*^{+} rest frame", 100, -2.5, 2.5, 100, -2.5, 2.5); 
 
@@ -201,14 +213,18 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
             float eta = pythia.event[iPart].eta();
             float p = std::sqrt(px*px + py*py + pz*pz);
             float y = pythia.event[iPart].y();
-            if (std::abs(y) > 1.)
-                continue;
 
             auto mothers = pythia.event[iPart].motherList();
             auto dauList = pythia.event[iPart].daughterList();
 
             int motherIdx = -1;
-            bool isFromB = IsFromBeauty(mothers, pythia, motherIdx);
+            float ptB = -1.;
+            int Bdecay = -1;
+            bool isFromB = IsFromBeauty(mothers, pythia, motherIdx, ptB);
+            if (isFromB)
+            {
+                Bdecay = CheckBtoDstarExclusive(pythia, motherIdx);
+            }
 
             std::array<float, 2> ptDau{}, yDau{};
             ROOT::Math::PxPyPzMVector fourVecD0, fourVecPi;
@@ -261,7 +277,7 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
             ROOT::Math::XYZVector helicityVecB = ROOT::Math::XYZVector(pxB / pB, pyB / pB, pzB / pB);
             float cosThetaStarB = std::abs(helicityVecB.Dot(threeVecD0CM) / std::sqrt(threeVecD0CM.Mag2()));
 
-            float array4tuple[9] = {pT, y, cosThetaStar, cosThetaStarB, ptDau[0], yDau[0], ptDau[1], yDau[1], (float)isFromB};
+            float array4tuple[11] = {pT, y, cosThetaStar, cosThetaStarB, ptDau[0], yDau[0], ptDau[1], yDau[1], (float)isFromB, ptB, (float)Bdecay};
             tupleDstars->Fill(array4tuple);
         }
     }
@@ -279,18 +295,142 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
 
 //__________________________________________________________________________________________________
 template<typename T, typename T2>
-bool IsFromBeauty(T& mothers, T2& pythia, int& motherIdx)
+bool IsFromBeauty(T& mothers, T2& pythia, int& motherIdx, float& ptB)
 {
     for(auto& mom : mothers)
     {
         int absPdgMom = std::abs(pythia.event[mom].id());
-        if(absPdgMom == 5 || absPdgMom/100 == 5 || absPdgMom/1000 == 5 ||
+        if(absPdgMom/100 == 5 || absPdgMom/1000 == 5 ||
            (absPdgMom-10000)/100 == 5 || (absPdgMom-20000)/100 == 5 || (absPdgMom-30000)/100 == 5 ||
            (absPdgMom-100000)/100 == 5 || (absPdgMom-200000)/100 == 5 || (absPdgMom-300000)/100 == 5)
         {  // remove beauty feed-down
             motherIdx = mom;
+            ptB = pythia.event[mom].pT();
             return true;
         }
     }
     return false;
+}
+
+template<typename T>
+int CheckBtoDstarExclusive(T& pythia, int motherIdx)
+{
+    int pdgB = std::abs(pythia.event[motherIdx].id());
+    if (pdgB == 521) 
+    {
+        auto dauList = pythia.event[motherIdx].daughterList();
+        if (dauList.size() == 4)
+        {
+            int nDstar = 0, nPiPlus = 0, nPi0 = 0;
+            for (auto& dau: dauList)
+            {
+                switch(std::abs(pythia.event[dau].id())) {
+                    case 413:
+                    {
+                        nDstar++;
+                        break;
+                    }
+                    case 211:
+                    {
+                        nPiPlus++;
+                        break;
+                    }
+                    case 111:
+                    {
+                        nPi0++;
+                        break;
+                    }
+                }
+            }
+            if (nDstar == 1 && nPiPlus == 2 && nPi0 == 1)
+                return kBPlustoDstarPiPlusPiPlusPi0;
+        }
+    }
+    else if (pdgB == 511) 
+    {
+        auto dauList = pythia.event[motherIdx].daughterList();
+        int nDstar = 0, nPiPlus = 0, nPi0 = 0, nEl = 0, nNue = 0, nMu = 0, nNumu = 0, nTau = 0, nNutau = 0, nDstarS = 0;
+        if (dauList.size() == 2)
+        {
+            for (auto& dau: dauList)
+            {
+                switch(std::abs(pythia.event[dau].id())) {
+                    case 413:
+                    {
+                        nDstar++;
+                        break;
+                    }
+                    case 433:
+                    {
+                        nDstarS++;
+                        break;
+                    }
+                }
+            }
+        }
+        else if (dauList.size() == 3)
+        {
+            for (auto& dau: dauList)
+            {
+                switch(std::abs(pythia.event[dau].id())) {
+                    case 413:
+                    {
+                        nDstar++;
+                        break;
+                    }
+                    case 211:
+                    {
+                        nPiPlus++;
+                        break;
+                    }
+                    case 111:
+                    {
+                        nPi0++;
+                        break;
+                    }
+                    case 11:
+                    {
+                        nEl++;
+                        break;
+                    }
+                    case 12:
+                    {
+                        nNue++;
+                        break;
+                    }
+                    case 13:
+                    {
+                        nMu++;
+                        break;
+                    }
+                    case 14:
+                    {
+                        nNumu++;
+                        break;
+                    }
+                    case 15:
+                    {
+                        nTau++;
+                        break;
+                    }
+                    case 16:
+                    {
+                        nNutau++;
+                        break;
+                    }
+                }
+            }
+        }
+        if (nDstar == 1 && nDstarS == 1)
+            return kB0toDstarDstarS;
+        if (nDstar == 1 && nPiPlus == 1 && nPi0 == 1)
+            return kB0toDstarPiPlusPi0;
+        if (nDstar == 1 && nEl == 1 && nNue == 1)
+            return kB0toDstarElNue;
+        if (nDstar == 1 && nMu == 1 && nNumu == 1)
+            return kB0toDstarMuNumu;
+        if (nDstar == 1 && nTau == 1 && nNutau == 1)
+            return kB0toDstarTauNutau;
+    }
+    return -1;
 }
