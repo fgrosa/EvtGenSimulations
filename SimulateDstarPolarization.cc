@@ -189,6 +189,7 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
     auto hPzCorr = new TH2F("hPzCorr", ";#it{p}_{z}(D*^{+}) lab frame;#it{p}_{z}(B) D*^{+} rest frame", 200, -10., 10., 200, -10., 10.); 
     auto hPhiCorr = new TH2F("hPhiCorr", ";#varphi(D*^{+}) lab frame;#varphi(B) D*^{+} rest frame", 100, 0., TMath::Pi(), 100, 0., TMath::Pi()); 
     auto hEtaCorr = new TH2F("hEtaCorr", ";#eta(D*^{+}) lab frame;#eta(B) D*^{+} rest frame", 100, -2.5, 2.5, 100, -2.5, 2.5); 
+    auto hCosThetaStarYvsPt = new TH2F("hCosThetaStarYvsPt", ";#it{p}_{T} (GeV/#it{c});cos(#theta_{y}*)", 100, 0., 50., 100, 0., 1.); 
 
     //__________________________________________________________
     // perform the simulation
@@ -252,7 +253,9 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
             ROOT::Math::PxPyPzMVector fourVecD0CM = boostv12(fourVecD0);
             ROOT::Math::XYZVector threeVecD0CM = fourVecD0CM.Vect();
             ROOT::Math::XYZVector helicityVec = ROOT::Math::XYZVector(px / p, py / p, pz / p);
+            ROOT::Math::XYZVector yVec = ROOT::Math::XYZVector(0., 1., 0.);
             float cosThetaStar = std::abs(helicityVec.Dot(threeVecD0CM) / std::sqrt(threeVecD0CM.Mag2()));
+            float cosThetaStarY = std::abs(yVec.Dot(threeVecD0CM) / std::sqrt(threeVecD0CM.Mag2()));
             float pxB = 0., pyB = 0., pzB = 0.;
 
             if(isFromB && motherIdx >= 0) {
@@ -268,6 +271,7 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
                     hPzCorr->Fill(pz, pzB);
                     hPhiCorr->Fill(phi, fourVecBCM.Phi());
                     hEtaCorr->Fill(eta, fourVecBCM.Eta());
+                    hCosThetaStarYvsPt->Fill(pT, cosThetaStarY);
                 }
             }
 
@@ -290,6 +294,7 @@ void SimulateDstarPolarization(int nEvents, int decayer, int tune, int process, 
     hPzCorr->Write();
     hPhiCorr->Write();
     hEtaCorr->Write();
+    hCosThetaStarYvsPt->Write();
     outFile.Close();
 }
 
